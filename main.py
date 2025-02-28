@@ -9,7 +9,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 df = pd.read_excel("AmesHousing.xlsx")
 
 # Select relevant features (customize as needed)
-features = ["LotArea", "YearBuilt", "OverallQual", "GarageCars", "TotalBsmtSF", "GrLivArea"]
+features = ["Lot Area", "Year Built", "Overall Qual", "Garage Cars", "Total Bsmt SF", "Gr Liv Area"]
 target = "SalePrice"
 
 # Drop missing values
