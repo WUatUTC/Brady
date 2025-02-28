@@ -71,6 +71,9 @@ def user_input_features():
 
 input_df = user_input_features()
 
+# Ensure all input data is numeric
+input_df = input_df.apply(pd.to_numeric)
+
 # Display user inputs
 st.subheader('User Input Parameters')
 st.write(input_df)
