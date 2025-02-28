@@ -24,16 +24,22 @@ df = pd.read_excel(file_name, sheet_name=0)  # Load first sheet
 df.columns = [col.split('(')[0].strip() for col in df.columns]
 df.rename(columns={'SalePrice': 'Sale Price'}, inplace=True)
 
-# Handle missing values (fill with mean for numeric columns only)
+# Separate numeric and categorical columns
 numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
-df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].mean())
+categorical_cols = df.select_dtypes(include=['object']).columns
+
+# Handle missing values
+df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].mean())  # Fill numeric with mean
+df[categorical_cols] = df[categorical_cols].fillna(df[categorical_cols].mode().iloc[0])  # Fill categorical with mode
+
+# Encode categorical variables (one-hot encoding)
+df_encoded = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
 
 # Split the data into features and target
-X = df.drop(columns=['Sale Price'])
-y = df['Sale Price']
+X = df_encoded.drop(columns=['Sale Price'])
+y = df_encoded['Sale Price']
 
 # Train a Multiple Regression Model
-# Split the data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 # Train the model
@@ -48,15 +54,12 @@ mse = mean_squared_error(y_test, y_pred)
 st.write(f"Mean Squared Error (MSE) of the model: {mse}")
 
 # Create the Streamlit web-based app
-# Title of the app
 st.title('Ames Housing Dataset Predictions')
 
 # Sidebar for user inputs
 st.sidebar.header('Input Parameters')
 
-# Define feature input function
 def user_input_features():
-    # Match these to the columns in the original dataset
     Lot_Area = st.sidebar.slider('Lot Area', 1300, 215245, 2000)
     Overall_Qual = st.sidebar.slider('Overall Quality', 1, 10, 5)
     Overall_Cond = st.sidebar.slider('Overall Condition', 1, 10, 5)
@@ -64,7 +67,7 @@ def user_input_features():
     Total_Bsmt_SF = st.sidebar.slider('Total Basement SF', 0, 6110, 2500)
     data = {
         'Lot Area': Lot_Area,
-        'Overall Qual': Overall_Qual,  # Match exact names from df
+        'Overall Qual': Overall_Qual,
         'Overall Cond': Overall_Cond,
         'Year Built': Year_Built,
         'Total Bsmt SF': Total_Bsmt_SF,
@@ -74,12 +77,15 @@ def user_input_features():
 
 input_df = user_input_features()
 
-# Ensure input_df matches X_train's structure
-# Create a DataFrame with all columns from X, filled with means or zeros
+# Create a full input DataFrame matching X’s structure
 full_input_df = pd.DataFrame(columns=X.columns)
-full_input_df.loc[0] = X.mean()  # Fill with training data means
+full_input_df.loc[0] = 0  # Initialize with zeros
 
-# Update only the columns provided by the user
+# Fill numeric columns with means from training data
+numeric_cols_X = X.select_dtypes(include=['int64', 'float64']).columns
+full_input_df[numeric_cols_X] = X[numeric_cols_X].mean()
+
+# Update with user-provided values (ensure column names match)
 for col in input_df.columns:
     if col in full_input_df.columns:
         full_input_df[col] = input_df[col]
@@ -89,7 +95,7 @@ full_input_df = full_input_df.astype(float)
 
 # Display user inputs
 st.subheader('User Input Parameters')
-st.write(input_df)  # Show only the user-modified inputs
+st.write(input_df)
 
 # Predict the housing price
 prediction = model.predict(full_input_df)
