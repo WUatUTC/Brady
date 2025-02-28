@@ -14,18 +14,19 @@ import openpyxl
 import xlrd
 
 # Define the file name manually
-file_name = "AmesHousing.xlsx" # Set your filename here
+file_name = "AmesHousing.xlsx"  # Set your filename here
 st.write(f"Using file: {file_name}")
 
 # Read the dataset from the Excel file
-df = pd.read_excel(file_name, sheet_name=0) # Load first sheet
+df = pd.read_excel(file_name, sheet_name=0)  # Load first sheet
 
 # Clean column names
 df.columns = [col.split('(')[0].strip() for col in df.columns]
 df.rename(columns={'SalePrice': 'Sale Price'}, inplace=True)
 
-# Handle missing values (fill or drop depending on the situation)
-df.fillna(df.mean(), inplace=True)
+# Handle missing values (fill with mean for numeric columns only)
+numeric_cols = df.select_dtypes(include=['int64', 'float64']).columns
+df[numeric_cols] = df[numeric_cols].fillna(df[numeric_cols].mean())
 
 # Split the data into features and target
 X = df.drop(columns=['Sale Price'])
@@ -53,7 +54,9 @@ st.title('Ames Housing Dataset Predictions')
 # Sidebar for user inputs
 st.sidebar.header('Input Parameters')
 
+# Define feature input function
 def user_input_features():
+    # Match these to the columns in the original dataset
     Lot_Area = st.sidebar.slider('Lot Area', 1300, 215245, 2000)
     Overall_Qual = st.sidebar.slider('Overall Quality', 1, 10, 5)
     Overall_Cond = st.sidebar.slider('Overall Condition', 1, 10, 5)
@@ -61,25 +64,35 @@ def user_input_features():
     Total_Bsmt_SF = st.sidebar.slider('Total Basement SF', 0, 6110, 2500)
     data = {
         'Lot Area': Lot_Area,
-        'Overall Quality': Overall_Qual,
-        'Overall Condition': Overall_Cond,
+        'Overall Qual': Overall_Qual,  # Match exact names from df
+        'Overall Cond': Overall_Cond,
         'Year Built': Year_Built,
-        'Total Basement SF': Total_Bsmt_SF,
+        'Total Bsmt SF': Total_Bsmt_SF,
     }
     features = pd.DataFrame(data, index=[0])
     return features
 
 input_df = user_input_features()
 
-# Ensure all input data is numeric
-input_df = input_df.apply(pd.to_numeric)
+# Ensure input_df matches X_train's structure
+# Create a DataFrame with all columns from X, filled with means or zeros
+full_input_df = pd.DataFrame(columns=X.columns)
+full_input_df.loc[0] = X.mean()  # Fill with training data means
+
+# Update only the columns provided by the user
+for col in input_df.columns:
+    if col in full_input_df.columns:
+        full_input_df[col] = input_df[col]
+
+# Ensure all data is numeric
+full_input_df = full_input_df.astype(float)
 
 # Display user inputs
 st.subheader('User Input Parameters')
-st.write(input_df)
+st.write(input_df)  # Show only the user-modified inputs
 
 # Predict the housing price
-prediction = model.predict(input_df)
+prediction = model.predict(full_input_df)
 
 # Display the prediction (formatted as currency)
 st.subheader('Sale Price Prediction (in dollars)')
